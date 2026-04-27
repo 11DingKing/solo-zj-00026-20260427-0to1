@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: rental_db
+    environment:
+      POSTGRES_USER: rental
+      POSTGRES_PASSWORD: rental123
+      POSTGRES_DB: rental
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rental -d rental"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rental_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rental_backend
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: rental
+      DB_PASSWORD: rental123
+      DB_NAME: rental
+      JWT_SECRET: your_jwt_secret_key_here_change_in_production
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - rental_network
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rental_frontend
+    environment:
+      NUXT_API_URL: http://backend:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - rental_network
+
+networks:
+  rental_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  backend_uploads:
