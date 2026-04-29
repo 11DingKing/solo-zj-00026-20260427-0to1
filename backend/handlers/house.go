@@ -15,6 +15,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -304,7 +305,7 @@ func UpdateHouse(c *fiber.Ctx) error {
 		})
 	}
 
-	var req CreateHouseRequest
+	var req map[string]interface{}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -312,65 +313,75 @@ func UpdateHouse(c *fiber.Ctx) error {
 	}
 
 	updates := make(map[string]interface{})
-	if req.Title != "" {
-		updates["title"] = req.Title
+
+	if v, ok := req["title"].(string); ok && v != "" {
+		updates["title"] = v
 	}
-	if req.CommunityName != "" {
-		updates["community_name"] = req.CommunityName
+	if v, ok := req["community_name"].(string); ok && v != "" {
+		updates["community_name"] = v
 	}
-	if req.Address != "" {
-		updates["address"] = req.Address
+	if v, ok := req["address"].(string); ok && v != "" {
+		updates["address"] = v
 	}
-	if req.Longitude != 0 {
-		updates["longitude"] = req.Longitude
+	if v, ok := req["longitude"].(float64); ok {
+		updates["longitude"] = v
 	}
-	if req.Latitude != 0 {
-		updates["latitude"] = req.Latitude
+	if v, ok := req["latitude"].(float64); ok {
+		updates["latitude"] = v
 	}
-	if req.Price > 0 {
-		updates["price"] = req.Price
+	if v, ok := req["price"].(float64); ok && v > 0 {
+		updates["price"] = int(v)
 	}
-	if req.Area > 0 {
-		updates["area"] = req.Area
+	if v, ok := req["area"].(float64); ok && v > 0 {
+		updates["area"] = v
 	}
-	if req.Bedrooms >= 0 {
-		updates["bedrooms"] = req.Bedrooms
+	if v, ok := req["bedrooms"].(float64); ok && v >= 0 {
+		updates["bedrooms"] = int(v)
 	}
-	if req.LivingRooms >= 0 {
-		updates["living_rooms"] = req.LivingRooms
+	if v, ok := req["living_rooms"].(float64); ok && v >= 0 {
+		updates["living_rooms"] = int(v)
 	}
-	if req.Bathrooms >= 0 {
-		updates["bathrooms"] = req.Bathrooms
+	if v, ok := req["bathrooms"].(float64); ok && v >= 0 {
+		updates["bathrooms"] = int(v)
 	}
-	if req.Floor > 0 {
-		updates["floor"] = req.Floor
+	if v, ok := req["floor"].(float64); ok && v > 0 {
+		updates["floor"] = int(v)
 	}
-	if req.TotalFloors > 0 {
-		updates["total_floors"] = req.TotalFloors
+	if v, ok := req["total_floors"].(float64); ok && v > 0 {
+		updates["total_floors"] = int(v)
 	}
-	if req.Orientation != "" {
-		updates["orientation"] = req.Orientation
+	if v, ok := req["orientation"].(string); ok && v != "" {
+		updates["orientation"] = models.Orientation(v)
 	}
-	if req.Decoration != "" {
-		updates["decoration"] = req.Decoration
+	if v, ok := req["decoration"].(string); ok && v != "" {
+		updates["decoration"] = models.DecorationLevel(v)
 	}
-	if req.Facilities != nil {
-		updates["facilities"] = req.Facilities
+	if v, ok := req["facilities"].([]interface{}); ok {
+		facilities := make([]string, 0)
+		for _, f := range v {
+			if str, ok := f.(string); ok {
+				facilities = append(facilities, str)
+			}
+		}
+		house.Facilities = pq.StringArray(facilities)
 	}
-	if req.MoveInDate != nil {
-		updates["move_in_date"] = req.MoveInDate
+	if v, ok := req["min_lease_term"].(float64); ok && v > 0 {
+		updates["min_lease_term"] = int(v)
 	}
-	if req.MinLeaseTerm > 0 {
-		updates["min_lease_term"] = req.MinLeaseTerm
+	if v, ok := req["description"].(string); ok {
+		updates["description"] = v
 	}
-	if req.Description != "" {
-		updates["description"] = req.Description
+	if v, ok := req["images"].([]interface{}); ok {
+		images := make([]string, 0)
+		for _, img := range v {
+			if str, ok := img.(string); ok {
+				images = append(images, str)
+			}
+		}
+		house.Images = pq.StringArray(images)
 	}
-	if req.Images != nil {
-		updates["images"] = req.Images
-	}
-	if req.Status != "" {
-		updates["status"] = req.Status
+	if v, ok := req["status"].(string); ok && v != "" {
+		updates["status"] = models.HouseStatus(v)
 	}
 
 	if len(updates) > 0 {
