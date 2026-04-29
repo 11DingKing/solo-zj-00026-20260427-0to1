@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 
@@ -55,13 +56,13 @@ func GetSimilarHouses(c *fiber.Ctx) error {
 			house.Bedrooms, house.LivingRooms, house.Bathrooms,
 			minPrice, maxPrice)
 
-	query.Order(`
+	query.Order(fmt.Sprintf(`
 		CASE
-			WHEN community_name = ? THEN 0
+			WHEN community_name = '%s' THEN 0
 			ELSE 1
 		END,
-		ABS(price - ?) ASC
-	`, house.CommunityName, house.Price).
+		ABS(price - %d) ASC
+	`, house.CommunityName, house.Price)).
 		Limit(limit).
 		Preload("Landlord").
 		Find(&similarHouses)

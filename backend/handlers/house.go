@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"io"
-	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strconv"
