@@ -49,7 +49,7 @@ func CreateHouse(c *fiber.Ctx) error {
 		})
 	}
 
-	var req CreateHouseRequest
+	var req map[string]interface{}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -57,31 +57,104 @@ func CreateHouse(c *fiber.Ctx) error {
 	}
 
 	house := models.House{
-		LandlordID:    user.ID,
-		Title:         req.Title,
-		CommunityName: req.CommunityName,
-		Address:       req.Address,
-		Longitude:     req.Longitude,
-		Latitude:      req.Latitude,
-		Price:         req.Price,
-		Area:          req.Area,
-		Bedrooms:      req.Bedrooms,
-		LivingRooms:   req.LivingRooms,
-		Bathrooms:     req.Bathrooms,
-		Floor:         req.Floor,
-		TotalFloors:   req.TotalFloors,
-		Orientation:   req.Orientation,
-		Decoration:    req.Decoration,
-		Facilities:    req.Facilities,
-		MoveInDate:    req.MoveInDate,
-		MinLeaseTerm:  req.MinLeaseTerm,
-		Description:   req.Description,
-		Images:        req.Images,
-		Status:        req.Status,
+		LandlordID: user.ID,
+		Status:     models.StatusPublished,
 	}
 
-	if house.Status == "" {
-		house.Status = models.StatusPublished
+	if v, ok := req["title"].(string); ok && v != "" {
+		house.Title = v
+	}
+	if v, ok := req["community_name"].(string); ok && v != "" {
+		house.CommunityName = v
+	}
+	if v, ok := req["address"].(string); ok && v != "" {
+		house.Address = v
+	}
+	if v, ok := req["longitude"].(float64); ok {
+		house.Longitude = v
+	}
+	if v, ok := req["latitude"].(float64); ok {
+		house.Latitude = v
+	}
+	if v, ok := req["price"].(float64); ok {
+		house.Price = int(v)
+	}
+	if v, ok := req["area"].(float64); ok {
+		house.Area = v
+	}
+	if v, ok := req["bedrooms"].(float64); ok {
+		house.Bedrooms = int(v)
+	}
+	if v, ok := req["living_rooms"].(float64); ok {
+		house.LivingRooms = int(v)
+	}
+	if v, ok := req["bathrooms"].(float64); ok {
+		house.Bathrooms = int(v)
+	}
+	if v, ok := req["floor"].(float64); ok {
+		house.Floor = int(v)
+	}
+	if v, ok := req["total_floors"].(float64); ok {
+		house.TotalFloors = int(v)
+	}
+	if v, ok := req["orientation"].(string); ok && v != "" {
+		house.Orientation = models.Orientation(v)
+	}
+	if v, ok := req["decoration"].(string); ok && v != "" {
+		house.Decoration = models.DecorationLevel(v)
+	}
+	if v, ok := req["facilities"].([]interface{}); ok {
+		facilities := make([]string, 0)
+		for _, f := range v {
+			if str, ok := f.(string); ok {
+				facilities = append(facilities, str)
+			}
+		}
+		house.Facilities = facilities
+	}
+	if v, ok := req["min_lease_term"].(float64); ok {
+		house.MinLeaseTerm = int(v)
+	}
+	if v, ok := req["description"].(string); ok {
+		house.Description = v
+	}
+	if v, ok := req["images"].([]interface{}); ok {
+		images := make([]string, 0)
+		for _, img := range v {
+			if str, ok := img.(string); ok {
+				images = append(images, str)
+			}
+		}
+		house.Images = images
+	}
+	if v, ok := req["status"].(string); ok && v != "" {
+		house.Status = models.HouseStatus(v)
+	}
+
+	if house.Title == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Title is required",
+		})
+	}
+	if house.CommunityName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Community name is required",
+		})
+	}
+	if house.Address == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Address is required",
+		})
+	}
+	if house.Price <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Price must be greater than 0",
+		})
+	}
+	if house.Area <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Area must be greater than 0",
+		})
 	}
 
 	if err := database.DB.Create(&house).Error; err != nil {
@@ -558,5 +631,77 @@ func GetMyHouses(c *fiber.Ctx) error {
 			"page":  page,
 			"limit": limit,
 		},
+	})
+}
+
+func UploadTempImages(c *fiber.Ctx) error {
+	user := middleware.GetCurrentUser(c)
+	if user.Role != models.RoleLandlord {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Only landlords can upload images",
+		})
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid multipart form",
+		})
+	}
+
+	files := form.File["images"]
+	if len(files) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "No images provided",
+		})
+	}
+
+	if len(files) > 9 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Maximum 9 images allowed",
+		})
+	}
+
+	uploadDir := "./uploads"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create upload directory",
+		})
+	}
+
+	var uploadedUrls []string
+
+	for _, file := range files {
+		ext := filepath.Ext(file.Filename)
+		newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+		filePath := filepath.Join(uploadDir, newFilename)
+
+		src, err := file.Open()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to open uploaded file",
+			})
+		}
+		defer src.Close()
+
+		dst, err := os.Create(filePath)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to save uploaded file",
+			})
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, src); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to save uploaded file",
+			})
+		}
+
+		uploadedUrls = append(uploadedUrls, "/uploads/"+newFilename)
+	}
+
+	return c.JSON(fiber.Map{
+		"urls": uploadedUrls,
 	})
 }

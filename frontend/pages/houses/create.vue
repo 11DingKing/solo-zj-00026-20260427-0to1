@@ -382,8 +382,12 @@ const handleImageUpload = async (event: Event) => {
 
       const config = useRuntimeConfig()
       const tokenCookie = useCookie('auth_token')
-      
-      const response = await fetch(`${config.public.apiUrl}/api/houses/${route.query.id || 'temp'}/images`, {
+
+      const uploadUrl = editMode.value
+        ? `${config.public.apiUrl}/api/houses/${route.query.id}/images`
+        : `${config.public.apiUrl}/api/houses/temp/images`
+
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${tokenCookie.value}`,

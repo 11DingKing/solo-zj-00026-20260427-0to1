@@ -30,6 +30,7 @@ func SetupProtectedRoutes(app *fiber.App) {
 	houses.Post("/", handlers.CreateHouse)
 	houses.Put("/:id", handlers.UpdateHouse)
 	houses.Delete("/:id", handlers.DeleteHouse)
+	houses.Post("/temp/images", handlers.UploadTempImages)
 	houses.Post("/:id/images", handlers.UploadHouseImages)
 	houses.Put("/:id/status", handlers.UpdateHouseStatus)
 

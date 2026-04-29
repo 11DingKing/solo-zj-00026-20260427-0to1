@@ -362,37 +362,42 @@ const fetchMyHouses = async () => {
       params.append('status', houseStatusFilter.value)
     }
     const response = await api.get<{ data: any[] }>(`/my-houses?${params.toString()}`)
-    myHouses.value = response.data
+    myHouses.value = response.data || []
   } catch (error) {
     console.error('Failed to fetch my houses:', error)
+    myHouses.value = []
   }
 }
 
 const fetchReceivedMessages = async () => {
   try {
     const response = await api.get<{ data: any[] }>('/messages')
-    receivedMessages.value = response.data
-    unreadCount.value = response.data.filter((m: any) => !m.is_read).length
+    receivedMessages.value = response.data || []
+    unreadCount.value = receivedMessages.value.filter((m: any) => !m.is_read).length
   } catch (error) {
     console.error('Failed to fetch messages:', error)
+    receivedMessages.value = []
+    unreadCount.value = 0
   }
 }
 
 const fetchSentMessages = async () => {
   try {
     const response = await api.get<{ data: any[] }>('/messages/sent')
-    sentMessages.value = response.data
+    sentMessages.value = response.data || []
   } catch (error) {
     console.error('Failed to fetch sent messages:', error)
+    sentMessages.value = []
   }
 }
 
 const fetchFavorites = async () => {
   try {
     const response = await api.get<{ data: any[] }>('/favorites')
-    favorites.value = response.data
+    favorites.value = response.data || []
   } catch (error) {
     console.error('Failed to fetch favorites:', error)
+    favorites.value = []
   }
 }
 
