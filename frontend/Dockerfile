@@ -3,7 +3,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm config set registry https://registry.npmmirror.com && npm install
+RUN echo 'registry=https://registry.npmmirror.com' > .npmrc && \
+    echo 'disturl=https://npmmirror.com/mirrors/node' >> .npmrc && \
+    npm install --prefer-offline --no-audit --no-fund
 
 COPY . .
 RUN npm run build
